@@ -1,0 +1,9 @@
+Package: com.hackcatml.fricon
+Name: fricon
+Version: 0.0.1
+Architecture: iphoneos-arm
+Description: frida control command line tool
+Maintainer: hackcatml
+Author: hackcatml
+Section: System
+Tag: role::hacker
