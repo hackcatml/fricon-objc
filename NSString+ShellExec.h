@@ -1,4 +1,4 @@
-#import "Headers/NSTask.h"
+#import "NSTask.h"
 
 @interface NSString (ShellExecution)
 - (NSString *)runAsCommand;
