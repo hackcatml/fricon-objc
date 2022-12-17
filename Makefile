@@ -10,5 +10,6 @@ $(TOOL_NAME)_FILES = $(wildcard *.m)
 $(TOOL_NAME)_CFLAGS = -fobjc-arc
 $(TOOL_NAME)_CODESIGN_FLAGS = -Sentitlements.plist
 $(TOOL_NAME)_INSTALL_PATH = /usr/local/bin
+#변경사항 커밋 테스트
 
 include $(THEOS_MAKE_PATH)/tool.mk
