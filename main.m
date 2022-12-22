@@ -1,5 +1,8 @@
 #import "NSString+ShellExec.h"
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <spawn.h>
 #include <Foundation/Foundation.h>
 
 #define fridaplistPath @"/Library/LaunchDaemons/re.frida.server.plist"
@@ -9,9 +12,58 @@ NSString *shellCommand(NSString *shellcommand){
 	return output;
 }
 
+// check if frida-server is running
+static BOOL isProcessRunning(NSString *processName) {
+    BOOL running = NO;
+
+    NSString *input = [NSString stringWithFormat:@"ps ax | grep '%@' | grep -v grep | wc -l", processName];
+	NSString *output = [input runAsCommand];
+
+    int val = (int)[output integerValue];
+    if (val != 0) {
+        running = YES;
+    }
+
+    return running;
+}
+
+void fridaStop(){
+	printf("frida-server stopped.\n\n%s", [shellCommand(@"launchctl unload /Library/LaunchDaemons/re.frida.server.plist 2>/dev/null") UTF8String]);
+	// if still frida-server is running. kill it
+	while(isProcessRunning(@"frida-server")){
+		int pid = [shellCommand(@"ps ax | grep 'frida-server' | grep -v grep | cut -d' ' -f 2") intValue];
+		NSString* input = [NSString stringWithFormat:@"kill -9 %d", pid];
+		printf("%s\n", [shellCommand(input) UTF8String]);
+	}
+}
+
+void checkWeirdFridaProcess(BOOL withArgs, NSString* op1, NSString* op2){
+	// on iOS 15 sometimes weird process when start frida-server
+	if(isProcessRunning(@"xpcproxy re.frida.server")){
+		printf("weird xpcproxy re.frida.server process. restart...\n");
+		fridaStop();
+
+		// start frida-server again as manual
+		pid_t pid;
+    	int status;
+		if(withArgs) {
+			const char* args[] = {"/usr/sbin/frida-server", [op1 UTF8String], [op2 UTF8String], NULL};
+    		posix_spawn(&pid, "/usr/sbin/frida-server", NULL, NULL, (char* const*)args, NULL);
+		}
+		else {
+			const char* args[] = {"/usr/sbin/frida-server", NULL};
+    		posix_spawn(&pid, "/usr/sbin/frida-server", NULL, NULL, (char* const*)args, NULL);
+		}
+		waitpid(pid, &status, WEXITED);
+		printf("frida-server is now on.\n\n");
+	}
+}
+
 void installFrida(NSString *filePath){
 	NSString *input = [NSString stringWithFormat:@"dpkg -i %@ 2>/dev/null", filePath];
 	printf("%s\n", [shellCommand(input) UTF8String]);
+
+	checkWeirdFridaProcess(NO, NULL, NULL);
 }
 
 // Download frida-server
@@ -61,21 +113,6 @@ void downloadFrida(NSString *fridaVersion){
 	dispatch_main();
 }
 
-// check if frida-server is running
-static BOOL isProcessRunning(NSString *processName) {
-    BOOL running = NO;
-
-    NSString *input = [NSString stringWithFormat:@"ps ax | grep %@ | grep -v grep | wc -l", processName];
-	NSString *output = [input runAsCommand];
-
-    int val = (int)[output integerValue];
-    if (val != 0) {
-        running = YES;
-    }
-
-    return running;
-}
-
 // check if frida-server is installed
 static BOOL isFridaInstalled() {
 	BOOL installed = NO;
@@ -112,7 +149,7 @@ void showHelp(){
 
 void showStat(NSString *processName){
 	if(isProcessRunning(processName)){
-		NSString *input = [NSString stringWithFormat:@"ps ax | grep %@ | grep -v grep", processName];
+		NSString *input = [NSString stringWithFormat:@"ps -ef | grep %@ | grep -v grep", processName];
 		printf("%s\n", [shellCommand(input) UTF8String]);
 	} else {
 		printf("frida-server is not running.\n\n");
@@ -135,11 +172,7 @@ void recoverFridaPlist(){
 	[dict writeToFile:fridaplistPath atomically:YES];
 }
 
-void fridaStop(){
-	printf("frida-server stopped.\n\n%s", [shellCommand(@"launchctl unload /Library/LaunchDaemons/re.frida.server.plist 2>/dev/null") UTF8String]);
-}
-
-void fridaStart(){
+void fridaStart(BOOL withArgs, NSString* op1, NSString* op2){
 	if(!isFridaInstalled()) {
 		printf("frida-server is not installed yet.\n\n");
 		return;
@@ -149,14 +182,19 @@ void fridaStart(){
 		printf("frida-server is already running. restarting...\n\n");
 		fridaStop();
 		printf("frida-server is now on.\n\n%s", [shellCommand(@"launchctl load /Library/LaunchDaemons/re.frida.server.plist 2>/dev/null") UTF8String]);
-	} else {
+
+		checkWeirdFridaProcess(withArgs, op1, op2);
+	}
+	else {
 		printf("frida-server is on.\n\n%s", [shellCommand(@"launchctl load /Library/LaunchDaemons/re.frida.server.plist 2>/dev/null") UTF8String]);
+
+		checkWeirdFridaProcess(withArgs, op1, op2);
 	}
 }
 
 void fridaStartWithArgs(NSString *op1, NSString *op2){
 	writeFridaPlist(op1, op2);
-	fridaStart();
+	fridaStart(YES, op1, op2);
 }
 
 int main(int argc, char *argv[], char *envp[]) {
@@ -173,7 +211,7 @@ int main(int argc, char *argv[], char *envp[]) {
 			if([command isEqualToString:@"start"]){
 				if([arguments count] == 2){
 					recoverFridaPlist();
-					fridaStart();
+					fridaStart(NO, NULL, NULL);
 					return 0;
 				}
 				else if([arguments count] == 3){
