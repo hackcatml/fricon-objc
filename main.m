@@ -234,7 +234,7 @@ int main(int argc, char *argv[], char *envp[]) {
 				if(!isRepoInstalled()){
 					// printf("frida repo is not addded. add \"https://build.frida.re\" in cydia or sileo sources.\n\n");
 					// add frida repo /etc/apt/sources.list.d/sileo.sources
-					printf("%s\n", [shellcommand(@"echo -e 'Types: deb\nURIs: https://build.frida.re\nSuites: ./\nComponents: \n' >> /etc/apt/sources.list.d/sileo.sources")]);
+					printf("%s\n", [shellCommand(@"echo -e 'Types: deb\nURIs: https://build.frida.re\nSuites: ./\nComponents: \n' >> /etc/apt/sources.list.d/sileo.sources") UTF8String]);
 				}	
 
 				if([arguments count] == 2){					
