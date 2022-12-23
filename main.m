@@ -232,9 +232,17 @@ int main(int argc, char *argv[], char *envp[]) {
 				}
 			} else if([command isEqualToString:@"download"]){
 				if(!isRepoInstalled()){
-					// printf("frida repo is not addded. add \"https://build.frida.re\" in cydia or sileo sources.\n\n");
-					// add frida repo /etc/apt/sources.list.d/sileo.sources
-					printf("%s\n", [shellCommand(@"echo -e 'Types: deb\nURIs: https://build.frida.re\nSuites: ./\nComponents: \n' >> /etc/apt/sources.list.d/sileo.sources") UTF8String]);
+					// add frida repo
+					if([[NSFileManager defaultManager] fileExistsAtPath:@"/etc/apt/sources.list.d/cydia.list"]) {
+						printf("%s\n", [shellCommand(@"echo -e 'deb https://build.frida.re/ ./' >> /etc/apt/sources.list.d/cydia.list") UTF8String]);
+					}
+					else if([[NSFileManager defaultManager] fileExistsAtPath:@"/etc/apt/sources.list.d/sileo.sources"]) {
+						printf("%s\n", [shellCommand(@"echo -e 'Types: deb\nURIs: https://build.frida.re\nSuites: ./\nComponents: \n' >> /etc/apt/sources.list.d/sileo.sources") UTF8String]);
+					}
+					else {
+						printf("frida repo is not addded. add \"https://build.frida.re\" in cydia or sileo sources.\n\n");
+						return 1;
+					}
 				}	
 
 				if([arguments count] == 2){					
