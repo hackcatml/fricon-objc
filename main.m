@@ -27,7 +27,7 @@ static BOOL isProcessRunning(NSString *processName) {
     return running;
 }
 
-void fridaStop(){
+void fridaStop(void) {
 	printf("frida-server stopped.\n\n%s", [shellCommand(@"launchctl unload /Library/LaunchDaemons/re.frida.server.plist 2>/dev/null") UTF8String]);
 	// if still frida-server is running. kill it
 	while(isProcessRunning(@"frida-server")){
@@ -123,16 +123,7 @@ static BOOL isFridaInstalled() {
 	return installed;	
 }
 
-static BOOL isRepoInstalled() {
-	BOOL repoInstalled = NO;
-	int val = (int)[shellCommand(@"grep -rli 'build.frida.re' /etc/apt/sources.list.d/* | wc -l") integerValue];
-	if(val != 0){
-		repoInstalled = YES;
-	}
-	return repoInstalled;
-}
-
-void showHelp(){
+void showHelp(void){
 	printf("\nUsage: fricon <command> [options]\n\n");
 	printf("Commnad:\n");
 	printf("\tstart: Launch Frida Server\n");
@@ -165,7 +156,7 @@ void writeFridaPlist(NSString *op1, NSString *op2){
 	[dict writeToFile:fridaplistPath atomically:YES];
 }
 
-void recoverFridaPlist(){
+void recoverFridaPlist(void){
 	NSString *origProgramArguments = @"/usr/sbin/frida-server";
 	NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithContentsOfFile:fridaplistPath];
 	[dict setObject:[[NSMutableArray alloc] initWithObjects:origProgramArguments,nil] forKey:@"ProgramArguments"];
@@ -231,30 +222,11 @@ int main(int argc, char *argv[], char *envp[]) {
 					}
 				}
 			} else if([command isEqualToString:@"download"]){
-				if(!isRepoInstalled()){
-					// add frida repo
-					if([[NSFileManager defaultManager] fileExistsAtPath:@"/etc/apt/sources.list.d/cydia.list"]) {
-						printf("%s\n", [shellCommand(@"echo -e 'deb https://build.frida.re/ ./' >> /etc/apt/sources.list.d/cydia.list") UTF8String]);
-					}
-					else if([[NSFileManager defaultManager] fileExistsAtPath:@"/etc/apt/sources.list.d/sileo.sources"]) {
-						printf("%s\n", [shellCommand(@"echo -e 'Types: deb\nURIs: https://build.frida.re\nSuites: ./\nComponents: \n' >> /etc/apt/sources.list.d/sileo.sources") UTF8String]);
-					}
-					else {
-						printf("frida repo is not addded. add \"https://build.frida.re\" in cydia or sileo sources.\n\n");
-						return 1;
-					}
-				}	
-
-				if([arguments count] == 2){					
-					int val = 0;
-					while(!val){
-						printf("%s\n", [shellCommand(@"apt-get clean") UTF8String]);
-						printf("%s\n", [shellCommand(@"apt-get download re.frida.server --allow-unauthenticated -o APT::Sandbox::User=root") UTF8String]);
-						val = (int)[shellCommand(@"ls | grep re.frida.server | wc -l") integerValue];
-						sleep(1);
-					}
-					installFrida(@"re.frida.server*");
-					return 0;
+				if([arguments count] == 2){
+                    NSString* fridaVersion = [shellCommand(@"curl -sLI https://github.com/frida/frida/releases/latest | grep location: | cut -d ' ' -f 2 | cut -d '/' -f 8") stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+                    printf("frida version: %s\n", [fridaVersion UTF8String]);
+                    downloadFrida(fridaVersion);
+                    return 0;
 				} else if([arguments count] == 3){
 					printf("\nUsage1: fricon <command> [options]. see fricon help\n\n");	
 					return -1;
