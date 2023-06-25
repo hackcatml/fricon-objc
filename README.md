@@ -1,4 +1,4 @@
-# fricon
+# fricon-objc
 frida control command line tool<br>
 It works on iOS 15.0.2 palera1n JB<br>
 
